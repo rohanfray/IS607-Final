@@ -1,0 +1,108 @@
+Videogame pricing data
+========================================================
+
+Videogame consumers may wonder what kind of game they should "invest" in.  What kind of games and what kind of condition should they be kept in?
+
+
+
+```{r}
+price.guide <- read.csv("price-guide.csv",na.strings=c(""))
+head(price.guide)
+
+```
+First some definitions:  
+- ID is just a generic ID for the game
+- console name is the name for the console
+- product name is the name of the game or accessory
+- loose price is the price of the product without case or manual
+- cib price is the price of the product with case and manual
+- new price is the price of the the new unopened product
+- genre is the genre of the product
+- release date is the release date of the product
+
+______________________________________
+Next we do some cleanup of the data, fixing the dates as well as removing the '$' sign from the prices.
+
+
+```{r}
+price.guide$release.date = as.Date(price.guide$release.date)
+
+price.guide$loose.price = as.numeric(gsub("\\$","",price.guide$loose.price))
+price.guide$cib.price = as.numeric(gsub("\\$","",price.guide$cib.price))
+price.guide$new.price = as.numeric(gsub("\\$","",price.guide$new.price))
+```
+
+We can see from the plots below that the prices are a bit skewed.
+
+```{r fig.width=7, fig.height=6}
+plot(price.guide$loose.price)
+plot(price.guide$new.price)
+summary(price.guide)
+```
+
+___________________________________________
+Therefore we do the following log transformations
+
+```{r}
+price.guide$logloose = log(price.guide$loose.price)
+price.guide$logcib = log(price.guide$cib.price)
+price.guide$lognew = log(price.guide$new.price)
+```
+A panel equation that we will be using later
+```{r}
+p.regression = function(x,y) {
+  panel.xyplot(x,y)
+  panel.abline(lm(y~x))
+}
+
+library(lattice)
+```
+
+```{r fig.width=10, fig.height=10}
+xyplot(logcib~logloose | console.name,data = price.guide, panel=p.regression)
+```
+This graph shows, somewhat unsurprisingly, that as loose prices increase, cib prices also increase. 
+
+___________________________________________
+
+```{r fig.width=10, fig.height=10}
+xyplot(lognew~release.date | genre,data = price.guide, panel=p.regression)
+```
+This plot is a bit more interesting.  If we ignore music and controllers, we see that generally the older games have a higher new price than younger ones.  However, this does not seem to be the case for FPS (first person shooter) games
+```{r fig.width=10, fig.height=10}
+xyplot(lognew~release.date | genre,data = subset(price.guide,genre=='FPS'), panel=p.regression)
+xyplot(logloose~release.date | console.name,data = subset(price.guide,genre=='FPS'), panel=p.regression)
+```
+A reason that newer FPS games seem to enjoy higher new prices could be that FPSs have become much more popular in recent years than in years past.
+
+____________________________________________
+Finally lets define a spread of the new price - the loose price
+```{r}
+price.guide$spread = price.guide$lognew-price.guide$logloose
+summary(price.guide$spread)
+boxplot(price.guide$spread)
+```
+So for the most part there is not that much of a spread between the new and loose prices
+
+
+_______________________________________________
+
+
+Over time, is there one genre or console where new games are prized much more than loose games?
+
+No, it seems that over time that spread decreases, this makes sense as older games in mint condition are considered more valuable
+```{r fig.width=10, fig.height=10}
+xyplot(spread~release.date | genre,data = price.guide, panel=p.regression)
+
+xyplot(spread~release.date,data=price.guide, panel=p.regression)
+
+xyplot(spread~release.date | console.name,data = price.guide, panel=p.regression)
+```
+
+The Atari 400 on a further look
+```{r fig.width=10, fig.height=10}
+xyplot(spread~release.date,data = subset(price.guide,console.name=='Atari 400'), panel=p.regression)
+```
+
+________________________________________
+A conclusion to this is to 'invest' in new FPS games
